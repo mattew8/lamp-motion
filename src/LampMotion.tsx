@@ -30,7 +30,7 @@ const DEFAULT_OPTIONS: LampMotionResolvedOptions = {
   lockScroll: true,
 };
 
-interface LampMotionContextValue {
+export interface LampMotionContextValue {
   isOpen: boolean;
   open: (target?: LampMotionOpenTarget) => void;
   close: () => void;
@@ -91,7 +91,7 @@ function assertLampMotionElement(node: ReactNode): asserts node is LampMotionEle
   }
 }
 
-function useLampMotionContext(component: string): LampMotionContextValue {
+export function useLampMotionContext(component: string): LampMotionContextValue {
   const context = useContext(LampMotionContext);
   if (!context) {
     throw new Error(`<LampMotion.${component}> must be used within <LampMotion>`);
