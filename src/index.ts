@@ -1,0 +1,1 @@
+export { LampMotion } from "./LampMotion";
