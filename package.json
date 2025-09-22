@@ -1,0 +1,69 @@
+{
+  "name": "@lamp-motion/react",
+  "version": "0.1.0",
+  "description": "Headless contextual transition primitives for React.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "clean": "rm -rf dist .tsup",
+    "dev": "tsup src/index.ts --format esm --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "storybook": "storybook dev -p 6006",
+    "storybook:build": "storybook build",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*\"",
+    "format:check": "prettier --check \"src/**/*\""
+  },
+  "peerDependencies": {
+    "framer-motion": "^11.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@storybook/addon-essentials": "^8.1.0",
+    "@storybook/addon-interactions": "^8.1.0",
+    "@storybook/react": "^8.1.0",
+    "@storybook/react-vite": "^8.1.0",
+    "@storybook/test": "^8.1.0",
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.2.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^18.2.64",
+    "@types/react-dom": "^18.2.21",
+    "framer-motion": "^11.0.0",
+    "jsdom": "^24.0.0",
+    "storybook": "^8.1.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.4.5",
+    "vitest": "^1.5.0",
+    "eslint": "^9.13.0",
+    "@typescript-eslint/eslint-plugin": "^8.13.0",
+    "@typescript-eslint/parser": "^8.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsx-a11y": "^6.9.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-testing-library": "^6.4.0",
+    "prettier": "^3.3.3",
+    "globals": "^15.10.0",
+    "typescript-eslint": "^8.13.0"
+  },
+  "packageManager": "pnpm@9.14.2+sha512.6e2baf77d06b9362294152c851c4f278ede37ab1eba3a55fda317a4a17b209f4dbb973fb250a77abc463a341fcb1f17f17cfa24091c4eb319cda0d9b84278387"
+}
