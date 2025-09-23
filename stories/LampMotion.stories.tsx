@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { motion } from "framer-motion";
 import { LampMotion } from "../src";
 
 function StoryCard() {
@@ -32,11 +31,7 @@ function StoryCard() {
 
         <LampMotion.Portal>
           <LampMotion.Content>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            <div
               style={{
                 position: "fixed",
                 inset: 0,
@@ -81,8 +76,8 @@ function StoryCard() {
                 </header>
 
                 <p style={{ margin: 0, fontSize: "14px", color: "#475569" }}>
-                  Click the trigger again or press Escape to close. The component manages focus,
-                  outside clicks, and scroll locking for you.
+                  Click the trigger again to close. LampMotion handles the contextual expansion and
+                  collapse animation using transform + transition.
                 </p>
 
                 <footer style={{ display: "flex", gap: "12px" }}>
@@ -119,7 +114,7 @@ function StoryCard() {
                   </button>
                 </footer>
               </div>
-            </motion.div>
+            </div>
           </LampMotion.Content>
         </LampMotion.Portal>
       </LampMotion>
