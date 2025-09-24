@@ -3,11 +3,11 @@ import { LampMotionTrigger } from "./Trigger";
 import { LampMotionPortal } from "./Portal";
 import { LampMotionContent } from "./Content";
 
-interface LampMotionCompound extends typeof LampMotionRoot {
+type LampMotionCompound = typeof LampMotionRoot & {
   Trigger: typeof LampMotionTrigger;
   Portal: typeof LampMotionPortal;
   Content: typeof LampMotionContent;
-}
+};
 
 export const LampMotion = Object.assign(LampMotionRoot, {
   Trigger: LampMotionTrigger,
