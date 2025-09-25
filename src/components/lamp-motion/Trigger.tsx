@@ -7,19 +7,18 @@ export interface LampMotionTriggerProps {
 }
 
 export function LampMotionTrigger({ children }: LampMotionTriggerProps) {
-  const { isOpen, isAnimating, open, close } = useLampMotionContext("Trigger");
+  const { isOpen, open, close } = useLampMotionContext("Trigger");
   const localRef = useRef<HTMLElement | null>(null);
 
   const handleClick = useCallback(() => {
-    if (isAnimating) return;
     const element = localRef.current;
     if (!element) return;
     if (isOpen) {
       close();
-    } else {
-      open(element);
+      return;
     }
-  }, [close, open, isAnimating, isOpen]);
+    open(element);
+  }, [close, isOpen, open]);
 
   if (!isValidElement(children)) {
     throw new Error("<LampMotion.Trigger> expects a single React element child.");

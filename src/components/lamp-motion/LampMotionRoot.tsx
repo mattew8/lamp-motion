@@ -1,88 +1,56 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
-import { LampMotionContext, type LampMotionContextValue, type Rect } from "./context";
+import { LampMotionContext } from "./context";
 
-interface LampMotionRootProps {
+export const GENIE_EASING = "cubic-bezier(0.25, 1, 0.5, 1)";
+export const GENIE_DURATION_MS = 600;
+export const GENIE_TRANSITION = [
+  `transform ${GENIE_DURATION_MS}ms ${GENIE_EASING}`,
+  `clip-path ${GENIE_DURATION_MS}ms ${GENIE_EASING}`,
+  "opacity 300ms ease",
+].join(", ");
+
+export interface LampMotionRootProps {
   children: ReactNode;
-}
-
-const EASING = "cubic-bezier(0.25, 1, 0.5, 1)";
-const DURATION_MS = 320;
-
-export const TRANSITION = `transform ${DURATION_MS}ms ${EASING}`;
-export const TRANSITION_DURATION_MS = DURATION_MS;
-
-function readRect(element: HTMLElement): Rect {
-  const rect = element.getBoundingClientRect();
-  return { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
-}
-
-function rectsAreEqual(a: Rect | null, b: Rect | null): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height;
 }
 
 export function LampMotionRoot({ children }: LampMotionRootProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [shouldRenderPortal, setShouldRenderPortal] = useState(false);
-  const [originRect, setOriginRect] = useState<Rect | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
-
+  const [origin, setOrigin] = useState<DOMRect | null>(null);
   const originElementRef = useRef<HTMLElement | null>(null);
-  const originRectRef = useRef<Rect | null>(null);
 
-  const open = useCallback((element: HTMLElement) => {
-    originElementRef.current = element;
-    const rect = readRect(element);
-    originRectRef.current = rect;
-    setOriginRect(rect);
-    setShouldRenderPortal(true);
-    setIsOpen(true);
+  const readOriginRect = useCallback((element: HTMLElement | null): DOMRect | null => {
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    // DOMRect is mutable, create a new instance so consumers can rely on snapshots.
+    return new DOMRect(rect.x, rect.y, rect.width, rect.height);
   }, []);
 
-  const measureOriginRect = useCallback(() => {
-    const element = originElementRef.current;
-    if (!element) return originRectRef.current;
-    const rect = readRect(element);
-    if (!rectsAreEqual(originRectRef.current, rect)) {
-      originRectRef.current = rect;
-      setOriginRect(rect);
-    }
-    return rect;
-  }, []);
+  const open = useCallback(
+    (element: HTMLElement) => {
+      originElementRef.current = element;
+      const rect = readOriginRect(element);
+      setOrigin(rect);
+      setIsOpen(true);
+    },
+    [readOriginRect],
+  );
 
   const close = useCallback(() => {
+    const rect = readOriginRect(originElementRef.current);
+    if (rect) {
+      setOrigin(rect);
+    }
     setIsOpen(false);
-    measureOriginRect();
-  }, [measureOriginRect]);
+  }, [readOriginRect]);
 
-  const commitClose = useCallback(() => {
-    setShouldRenderPortal(false);
-    setIsAnimating(false);
-  }, []);
-
-  const beginAnimation = useCallback(() => {
-    setIsAnimating(true);
-  }, []);
-
-  const endAnimation = useCallback(() => {
-    setIsAnimating(false);
-  }, []);
-
-  const value = useMemo<LampMotionContextValue>(
+  const value = useMemo(
     () => ({
       isOpen,
-      isAnimating,
-      shouldRenderPortal,
-      originRect,
+      origin,
       open,
       close,
-      measureOriginRect,
-      commitClose,
-      beginAnimation,
-      endAnimation,
     }),
-    [beginAnimation, close, commitClose, endAnimation, isOpen, isAnimating, originRect, open, shouldRenderPortal],
+    [close, isOpen, open, origin],
   );
 
   return <LampMotionContext.Provider value={value}>{children}</LampMotionContext.Provider>;

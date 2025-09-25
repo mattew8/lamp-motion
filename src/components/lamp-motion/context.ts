@@ -1,24 +1,11 @@
 import { createContext, useContext } from "react";
 
-export interface Rect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
-
-export interface LampMotionContextValue {
+export type LampMotionContextValue = {
   isOpen: boolean;
-  isAnimating: boolean;
-  shouldRenderPortal: boolean;
-  originRect: Rect | null;
+  origin: DOMRect | null;
   open: (element: HTMLElement) => void;
   close: () => void;
-  measureOriginRect: () => Rect | null;
-  commitClose: () => void;
-  beginAnimation: () => void;
-  endAnimation: () => void;
-}
+};
 
 export const LampMotionContext = createContext<LampMotionContextValue | null>(null);
 

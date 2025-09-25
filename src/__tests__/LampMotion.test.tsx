@@ -1,20 +1,32 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LampMotion } from "..";
+import { GENIE_DURATION_MS } from "../components/lamp-motion/LampMotionRoot";
 
 describe("LampMotion", () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
+  let rafQueue: FrameRequestCallback[];
+  let originalCSS: typeof window.CSS;
 
   beforeEach(() => {
+    rafQueue = [];
     rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(performance.now());
-      return 0 as unknown as number;
+      rafQueue.push(cb);
+      return rafQueue.length as unknown as number;
     });
+    originalCSS = window.CSS;
+    setClipPathSupport(true);
   });
 
   afterEach(() => {
     rafSpy.mockRestore();
+    if (originalCSS) {
+      window.CSS = originalCSS;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete (window as typeof window & { CSS?: typeof window.CSS }).CSS;
+    }
   });
 
   it("opens content when the trigger is activated", async () => {
@@ -41,11 +53,14 @@ describe("LampMotion", () => {
       await user.click(button);
     });
 
+    await flushRafs();
+
     expect(screen.getByText("Dialog body")).toBeInTheDocument();
     expect(button).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("closes when the trigger is toggled a second time", async () => {
+  it("uses a genie neck path when clip-path path() is supported", async () => {
+    setClipPathSupport(true);
     const user = userEvent.setup();
 
     render(
@@ -56,7 +71,7 @@ describe("LampMotion", () => {
 
         <LampMotion.Portal>
           <LampMotion.Content>
-            <div>Dialog body</div>
+            <div data-testid="dialog">Dialog body</div>
           </LampMotion.Content>
         </LampMotion.Portal>
       </LampMotion>,
@@ -67,25 +82,26 @@ describe("LampMotion", () => {
     await act(async () => {
       await user.click(button);
     });
-    const content = screen.getByText("Dialog body");
-    expect(content).toBeInTheDocument();
 
-    await act(async () => {
-      await user.click(button);
-    });
+    const dialog = screen.getByTestId("dialog");
+    const initialClip = dialog.style.clipPath;
+    expect(initialClip.startsWith("path(")).toBe(true);
 
-    await act(async () => {
-      fireEvent.transitionEnd(content, { propertyName: "transform" });
-    });
+    await flushRafs(1);
+    const midClip = dialog.style.clipPath;
+    expect(midClip.startsWith("path(")).toBe(true);
 
-    await waitFor(() => {
-      expect(screen.queryByText("Dialog body")).not.toBeInTheDocument();
-    });
-    expect(button).toHaveAttribute("aria-expanded", "false");
+    await flushRafs();
+    const finalClip = dialog.style.clipPath;
+    expect(finalClip.startsWith("path(")).toBe(true);
+    expect(finalClip).not.toEqual(initialClip);
+    expect(dialog.style.transformOrigin).toMatch(/px \d+(?:\.\d+)?px/);
   });
 
-  it("does not re-open while an animation is running", async () => {
-    const user = userEvent.setup();
+  it("falls back to circular clip-path when path() is unsupported and closes via ESC", async () => {
+    setClipPathSupport(false);
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
       <LampMotion>
@@ -95,7 +111,7 @@ describe("LampMotion", () => {
 
         <LampMotion.Portal>
           <LampMotion.Content>
-            <div>Dialog body</div>
+            <div data-testid="dialog">Dialog body</div>
           </LampMotion.Content>
         </LampMotion.Portal>
       </LampMotion>,
@@ -106,33 +122,63 @@ describe("LampMotion", () => {
     await act(async () => {
       await user.click(button);
     });
-    const content = screen.getByText("Dialog body");
+
+    await flushRafs();
+
+    const dialog = screen.getByTestId("dialog");
+    expect(dialog.style.clipPath).toMatch(/^circle\(/);
 
     await act(async () => {
-      await user.click(button);
+      await user.keyboard("{Escape}");
     });
 
-    await act(async () => {
-      await user.click(button);
-    });
+    await flushRafs();
 
+    expect(dialog.style.transform).toContain("skewY(-3deg)");
+    expect(dialog.style.clipPath).toMatch(/^circle\(/);
     expect(button).toHaveAttribute("aria-expanded", "false");
 
     await act(async () => {
-      fireEvent.transitionEnd(content, { propertyName: "transform" });
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByText("Dialog body")).not.toBeInTheDocument();
+      fireEvent.transitionEnd(dialog, { propertyName: "transform" });
     });
 
     await act(async () => {
-      await user.click(button);
+      vi.advanceTimersByTime(GENIE_DURATION_MS + 50);
     });
 
-    await waitFor(() => {
-      expect(screen.getByText("Dialog body")).toBeInTheDocument();
-    });
-    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByText("Dialog body")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
+
+  async function flushRafs(steps?: number) {
+    if (typeof steps === "number") {
+      for (let i = 0; i < steps; i += 1) {
+        const callback = rafQueue.shift();
+        if (!callback) break;
+        await act(async () => {
+          callback(performance.now());
+        });
+      }
+      return;
+    }
+
+    while (rafQueue.length > 0) {
+      const callback = rafQueue.shift();
+      if (!callback) break;
+      await act(async () => {
+        callback(performance.now());
+      });
+    }
+  }
+
+  function setClipPathSupport(supported: boolean) {
+    window.CSS = {
+      supports: vi.fn((property: string, value: string) => {
+        if (property === "clip-path" && value.startsWith("path(")) {
+          return supported;
+        }
+        return true;
+      }),
+    } as typeof window.CSS;
+  }
 });

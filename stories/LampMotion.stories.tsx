@@ -37,7 +37,6 @@ function StoryCard() {
                 inset: 0,
                 display: "grid",
                 placeItems: "center",
-                background: "rgba(15, 23, 42, 0.35)",
               }}
             >
               <div
