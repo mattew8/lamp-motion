@@ -59,6 +59,7 @@ export function LampyMenu() {
 ## Development
 
 - `pnpm install` – install dependencies.
+- `pnpm lint` – run ESLint with the repo rules.
 - `pnpm test` – run Vitest in watch mode.
 - `pnpm build` – bundle the package with tsup.
 - `pnpm storybook` – launch the Storybook playground for `useLampMotion`.
