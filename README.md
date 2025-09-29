@@ -1,4 +1,4 @@
-# @lamp-motion/react
+# @genie-motion/react
 
 Headless primitives for origin-aware transitions in React. Focus on the data you need to choreograph contextual animations, then wire it into whatever rendering strategy fits your design system.
 
@@ -12,21 +12,21 @@ Headless primitives for origin-aware transitions in React. Focus on the data you
 ## Installation
 
 ```bash
-npm install @lamp-motion/react
+npm install @genie-motion/react
 # or
-pnpm add @lamp-motion/react
+pnpm add @genie-motion/react
 # or
-yarn add @lamp-motion/react
+yarn add @genie-motion/react
 ```
 
 ## Usage
 
 ```tsx
 import { AnimatePresence, motion } from "framer-motion";
-import { useLampMotion } from "@lamp-motion/react";
+import { useGenieMotion } from "@genie-motion/react";
 
-export function LampyMenu() {
-  const { isOpen, origin, open, close, toggle } = useLampMotion();
+export function GenieyMenu() {
+  const { isOpen, origin, open, close, toggle } = useGenieMotion();
 
   return (
     <div>
@@ -43,7 +43,7 @@ export function LampyMenu() {
               position: "fixed",
               top: origin?.rect ? origin.rect.bottom + 12 : 140,
               left: origin?.rect ? origin.rect.left : 120,
-              transformOrigin: origin?.point ? `${origin.point.x}px ${origin.point.y}px` : "50% 0%"
+              transformOrigin: origin?.point ? `${origin.point.x}px ${origin.point.y}px` : "50% 0%",
             }}
           >
             <div role="menu">Put your custom portal or surface here.</div>
@@ -62,7 +62,7 @@ export function LampyMenu() {
 - `pnpm lint` – run ESLint with the repo rules.
 - `pnpm test` – run Vitest in watch mode.
 - `pnpm build` – bundle the package with tsup.
-- `pnpm storybook` – launch the Storybook playground for `useLampMotion`.
+- `pnpm storybook` – launch the Storybook playground for `useGenieMotion`.
 
 ## Roadmap
 
