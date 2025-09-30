@@ -171,7 +171,7 @@ export function LampMotionContent({ children, glParams }: LampMotionContentProps
     }
   }, []);
 
-  const ensureCanvas = useCallback((rect: DOMRect, pixelRatio: number) => {
+  const ensureCanvas = useCallback((rect: DOMRect, pixelRatio: number, offset: { x: number; y: number }) => {
     const overlay = overlayRef.current;
     if (!overlay) return null;
 
@@ -192,6 +192,7 @@ export function LampMotionContent({ children, glParams }: LampMotionContentProps
     canvas.height = height;
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
+    canvas.style.transform = `translate(${offset.x}px, ${offset.y}px)`;
 
     return canvas;
   }, []);
@@ -240,8 +241,9 @@ export function LampMotionContent({ children, glParams }: LampMotionContentProps
       clearSettleTimeout();
       stopWebGL();
 
-      const targetRect = node.getBoundingClientRect();
-      const metrics = calculateGenieMetrics(origin, targetRect);
+      const nodeRect = node.getBoundingClientRect();
+      const innerRect = inner.getBoundingClientRect();
+      const metrics = calculateGenieMetrics(origin, innerRect);
       lastMetricsRef.current = metrics;
 
       const pixelRatio =
@@ -261,8 +263,12 @@ export function LampMotionContent({ children, glParams }: LampMotionContentProps
           return true;
         }
 
-        const rect = node.getBoundingClientRect();
-        const canvas = ensureCanvas(rect, pixelRatio);
+        const rect = inner.getBoundingClientRect();
+        const offset = {
+          x: rect.left - nodeRect.left,
+          y: rect.top - nodeRect.top,
+        };
+        const canvas = ensureCanvas(rect, pixelRatio, offset);
         if (!canvas) {
           logWebGLIssue("open aborted: canvas unavailable");
           stopWebGL();
@@ -336,8 +342,9 @@ export function LampMotionContent({ children, glParams }: LampMotionContentProps
       clearSettleTimeout();
       stopWebGL();
 
-      const targetRect = node.getBoundingClientRect();
-      const metrics = calculateGenieMetrics(origin, targetRect);
+      const nodeRect = node.getBoundingClientRect();
+      const innerRect = inner.getBoundingClientRect();
+      const metrics = calculateGenieMetrics(origin, innerRect);
       lastMetricsRef.current = metrics;
 
       const pixelRatio =
@@ -357,8 +364,12 @@ export function LampMotionContent({ children, glParams }: LampMotionContentProps
           return true;
         }
 
-        const rect = node.getBoundingClientRect();
-        const canvas = ensureCanvas(rect, pixelRatio);
+        const rect = inner.getBoundingClientRect();
+        const offset = {
+          x: rect.left - nodeRect.left,
+          y: rect.top - nodeRect.top,
+        };
+        const canvas = ensureCanvas(rect, pixelRatio, offset);
         if (!canvas) {
           logWebGLIssue("close aborted: canvas unavailable");
           stopWebGL({ restoreContent: false });
