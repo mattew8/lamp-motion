@@ -62,10 +62,16 @@ async function captureWithHtml2Canvas(
   return image;
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+interface LoadImageOptions {
+  crossOrigin?: "anonymous" | "use-credentials" | "";
+}
+
+function loadImage(src: string, options?: LoadImageOptions): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (options?.crossOrigin) {
+      img.crossOrigin = options.crossOrigin;
+    }
     img.onload = () => resolve(img);
     img.onerror = (event) => reject(event);
     img.src = src;

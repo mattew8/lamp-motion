@@ -36,6 +36,9 @@
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },
+  "dependencies": {
+    "html2canvas": "^1.4.1"
+  },
   "devDependencies": {
     "@storybook/addon-essentials": "^8.1.0",
     "@storybook/addon-interactions": "^8.1.0",
