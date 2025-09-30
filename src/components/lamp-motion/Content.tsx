@@ -4,257 +4,481 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
+  type CSSProperties,
   type ReactElement,
+  type ReactNode,
+  type Ref,
 } from "react";
 import { useLampMotionContext } from "./context";
-import { GENIE_TRANSITION } from "./LampMotionRoot";
-import { buildGeniePath, calculateGenieMetrics, mergeRefs, supportsClipPathPath } from "./utils";
+import { calculateGenieMetrics, mergeRefs } from "./utils";
 import type { GenieMetrics } from "./utils";
+import { captureElementToImage } from "./webgl/capture";
+import { canUseWebGL, playGenie } from "./webgl/renderer";
+import type { GeniePlayOptions } from "./webgl/types";
 
-type AnimationState = "idle" | "opening" | "settling" | "closing";
+type AnimationState = "idle" | "opening" | "closing";
 
-const IDENTITY_TRANSFORM = "scale(1, 1) translate3d(0px, 0px, 0px) skewY(0deg)";
-const TRANSFORM_PROPERTY = "transform";
-const OVERSHOOT_TRANSITION = "transform 200ms ease-out";
-const OVERSHOOT_SCALE = 1.02;
-const INITIAL_SCALE = 0.96;
-const INITIAL_TRANSLATE_FACTOR = 0.18;
-const INITIAL_SKEW_DEG = 2;
+const IDENTITY_TRANSFORM = "translate3d(0px, 0px, 0px) scale(1, 1) skewY(0deg)";
 
-// Keep JS-driven clip-path morph in sync with transform duration (should match GENIE_TRANSITION timing)
-const GENIE_DURATION_MS = 600;
-const TRANSITION_WITHOUT_CLIP = `transform ${GENIE_DURATION_MS}ms cubic-bezier(0.25, 1, 0.5, 1), opacity 300ms ease`;
-
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
-}
-function clamp01(t: number): number {
-  return t < 0 ? 0 : t > 1 ? 1 : t;
-}
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
+interface GenieGLParams {
+  duration?: number;
+  rows?: number;
+  cols?: number;
+  neckMin?: number;
+  neckMaxRatio?: number;
+  curveStrengthRatio?: number;
 }
 
-/**
- * Animate clip-path by driving the path string with rAF.
- * This avoids relying on CSS path interpolation support and lets us sculpt the "neck".
- */
-function animateClipPath(
-  node: HTMLElement,
-  metrics: GenieMetrics,
-  direction: "open" | "close",
-  scheduleRaf: (cb: FrameRequestCallback) => number,
-) {
-  const supportsPath = supportsClipPathPath();
-  const start = performance.now();
+const DEFAULT_GL_PARAMS: Required<GenieGLParams> = {
+  duration: 720,
+  rows: 72,
+  cols: 24,
+  neckMin: 6,
+  neckMaxRatio: 0.42,
+  curveStrengthRatio: 0.16,
+};
 
-  const tick = (now: number) => {
-    const raw = (now - start) / GENIE_DURATION_MS;
-    const eased = easeOutCubic(clamp01(raw));
-    const u = direction === "open" ? eased : 1 - eased;
+interface ProcessLike {
+  env?: { NODE_ENV?: string };
+}
 
-    if (supportsPath) {
-      const path = buildGeniePath(metrics, u);
-      node.style.clipPath = path;
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[LampMotion] clip-path", path);
-      }
-    } else {
-      const r = lerp(metrics.originRadius, metrics.expandedRadius, u);
-      node.style.clipPath = buildCircle(r, metrics.originX, metrics.originY);
-    }
-
-    if (raw < 1) {
-      scheduleRaf(tick);
-    }
-  };
-
-  // kick
-  scheduleRaf(tick);
+function isDevEnvironment(): boolean {
+  const globalProcess = (globalThis as { process?: ProcessLike }).process;
+  return globalProcess?.env?.NODE_ENV !== "production";
 }
 
 export interface LampMotionContentProps {
   children: ReactElement;
+  glParams?: GenieGLParams;
 }
 
-export function LampMotionContent({ children }: LampMotionContentProps) {
+export function LampMotionContent({ children, glParams }: LampMotionContentProps) {
   const { isOpen, origin, close } = useLampMotionContext("Content");
   const contentRef = useRef<HTMLElement | null>(null);
   const animationStateRef = useRef<AnimationState>("idle");
   const previousIsOpenRef = useRef(false);
   const rafIdsRef = useRef<number[]>([]);
+  const settleTimeoutRef = useRef<number | null>(null);
+  const lastMetricsRef = useRef<GenieMetrics | null>(null);
+  const contentInnerRef = useRef<HTMLDivElement | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const webglSupportRef = useRef<boolean | null>(null);
+  const webglCancelRef = useRef<(() => void) | null>(null);
+  const operationIdRef = useRef(0);
+  const originalPositionRef = useRef<string | null>(null);
+  const resolvedGlParams = useMemo<Required<GenieGLParams>>(
+    () => ({
+      ...DEFAULT_GL_PARAMS,
+      ...(glParams ?? {}),
+    }),
+    [glParams],
+  );
+
+  const logWebGLIssue = useCallback((stage: string, detail?: unknown) => {
+    if (!isDevEnvironment() || typeof console === "undefined") return;
+    if (detail instanceof Error) {
+      console.warn(`[LampMotion] WebGL ${stage}`, detail);
+      return;
+    }
+    if (detail !== undefined) {
+      console.warn(`[LampMotion] WebGL ${stage}`, detail);
+      return;
+    }
+    console.warn(`[LampMotion] WebGL ${stage}`);
+  }, []);
 
   const flushRafs = useCallback(() => {
     rafIdsRef.current.forEach((id) => cancelAnimationFrame(id));
     rafIdsRef.current = [];
   }, []);
 
-  const scheduleRaf = useCallback((cb: FrameRequestCallback) => {
-    const id = requestAnimationFrame(cb);
-    rafIdsRef.current.push(id);
-    return id;
-  }, []);
-
-  const restoreRestingStyles = useCallback((node: HTMLElement) => {
-    node.style.transition = "";
-    node.style.willChange = "";
-    node.style.pointerEvents = "";
-    node.style.transformOrigin = "";
-    node.style.transform = "";
-    node.style.clipPath = "";
-    node.style.opacity = "";
-  }, []);
-
-  const playOpen = useCallback(
-    (node: HTMLElement) => {
-      if (!origin) {
-        restoreRestingStyles(node);
-        animationStateRef.current = "idle";
-        return;
-      }
-
-      flushRafs();
-
-      const targetRect = node.getBoundingClientRect();
-      const metrics = calculateGenieMetrics(origin, targetRect);
-      const supportsPath = supportsClipPathPath();
-
-      // transform-origin must be relative to the element's box, not the viewport
-      const localOriginX = metrics.originX - targetRect.left;
-      const localOriginY = metrics.originY - targetRect.top;
-
-      const startClip = supportsPath
-        ? buildGeniePath(metrics, 0)
-        : buildCircle(metrics.originRadius, metrics.originX, metrics.originY);
-
-      animationStateRef.current = "opening";
-      node.style.willChange = "transform, clip-path, opacity";
-      node.style.pointerEvents = "none";
-      node.style.transformOrigin = `${localOriginX}px ${localOriginY}px`;
-      node.style.transition = "none";
-      node.style.opacity = "0";
-      node.style.clipPath = startClip;
-      node.style.transform = buildOpenTransform(metrics, true);
-
-      scheduleRaf(() => {
-        scheduleRaf(() => {
-          // Transition transform/opacity only — clip-path is JS-driven for precise 'neck' shaping
-          node.style.transition = TRANSITION_WITHOUT_CLIP;
-          node.style.opacity = "1";
-          node.style.transform = buildOpenTransform(metrics, false);
-
-          // Drive the clip-path with rAF along the Genie curve
-          animateClipPath(node, metrics, "open", scheduleRaf);
-        });
-      });
-    },
-    [flushRafs, origin, restoreRestingStyles, scheduleRaf],
-  );
-
-  const playClose = useCallback(
-    (node: HTMLElement) => {
-      if (!origin) {
-        animationStateRef.current = "idle";
-        restoreRestingStyles(node);
-        return;
-      }
-
-      flushRafs();
-
-      const targetRect = node.getBoundingClientRect();
-      const metrics = calculateGenieMetrics(origin, targetRect);
-      const supportsPath = supportsClipPathPath();
-
-      // transform-origin must be relative to the element's box
-      const localOriginX = metrics.originX - targetRect.left;
-      const localOriginY = metrics.originY - targetRect.top;
-
-      const startClip = supportsPath
-        ? buildGeniePath(metrics, 1)
-        : buildCircle(metrics.expandedRadius, metrics.originX, metrics.originY);
-
-      animationStateRef.current = "closing";
-      node.style.willChange = "transform, clip-path, opacity";
-      node.style.pointerEvents = "none";
-      node.style.transformOrigin = `${localOriginX}px ${localOriginY}px`;
-      // Transition transform/opacity only
-      node.style.transition = TRANSITION_WITHOUT_CLIP;
-      node.style.opacity = "1";
-      node.style.clipPath = startClip;
-      node.style.transform = IDENTITY_TRANSFORM;
-
-      scheduleRaf(() => {
-        // Drive the clip-path back to the origin while we transform towards it
-        animateClipPath(node, metrics, "close", scheduleRaf);
-        node.style.opacity = "0";
-        node.style.transform = buildCloseTransform(metrics);
-      });
-    },
-    [flushRafs, origin, restoreRestingStyles, scheduleRaf],
-  );
-
-  useLayoutEffect(() => {
-    const node = contentRef.current;
-    if (!node || !origin) return;
-
-    const wasOpen = previousIsOpenRef.current;
-    if (isOpen && !wasOpen) {
-      playOpen(node);
-    } else if (!isOpen && wasOpen) {
-      playClose(node);
+  const clearSettleTimeout = useCallback(() => {
+    const timeoutId = settleTimeoutRef.current;
+    if (timeoutId != null) {
+      window.clearTimeout(timeoutId);
+      settleTimeoutRef.current = null;
     }
-    previousIsOpenRef.current = isOpen;
-  }, [isOpen, origin, playClose, playOpen]);
+  }, []);
+
+  const restoreRestingStyles = useCallback(
+    (node: HTMLElement, options?: { keepOpacityZero?: boolean }) => {
+      node.style.transition = "";
+      node.style.willChange = "";
+      node.style.pointerEvents = "";
+      node.style.transformOrigin = "";
+      node.style.transform = IDENTITY_TRANSFORM;
+      node.style.clipPath = "";
+      node.style.opacity = options?.keepOpacityZero ? "0" : "";
+    },
+    [],
+  );
+
+  const showInnerContent = useCallback(() => {
+    const inner = contentInnerRef.current;
+    if (!inner) return;
+    inner.style.visibility = "";
+    inner.style.opacity = "";
+    inner.style.pointerEvents = "";
+    inner.removeAttribute("aria-hidden");
+  }, []);
+
+  const hideInnerContent = useCallback(() => {
+    const inner = contentInnerRef.current;
+    if (!inner) return;
+    inner.style.visibility = "hidden";
+    inner.style.opacity = "0";
+    inner.style.pointerEvents = "none";
+    inner.setAttribute("aria-hidden", "true");
+  }, []);
+
+  const showOverlay = useCallback(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    overlay.style.display = "block";
+    overlay.style.opacity = "1";
+  }, []);
+
+  const hideOverlay = useCallback(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    overlay.style.opacity = "0";
+    overlay.style.display = "none";
+    if (canvasRef.current && canvasRef.current.parentElement === overlay) {
+      overlay.removeChild(canvasRef.current);
+      canvasRef.current = null;
+    }
+  }, []);
+
+  const ensureRelativePositioning = useCallback(() => {
+    const node = contentRef.current;
+    if (!node) return;
+    const computed = window.getComputedStyle(node);
+    if (computed.position === "static") {
+      originalPositionRef.current ??= node.style.position;
+      node.style.position = "relative";
+    }
+  }, []);
+
+  const restorePositioning = useCallback(() => {
+    const node = contentRef.current;
+    if (!node) return;
+    if (originalPositionRef.current != null) {
+      node.style.position = originalPositionRef.current;
+      originalPositionRef.current = null;
+    }
+  }, []);
+
+  const ensureCanvas = useCallback((rect: DOMRect, pixelRatio: number) => {
+    const overlay = overlayRef.current;
+    if (!overlay) return null;
+
+    let canvas = canvasRef.current;
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.style.position = "absolute";
+      canvas.style.top = "0";
+      canvas.style.left = "0";
+      canvas.style.pointerEvents = "none";
+      overlay.appendChild(canvas);
+      canvasRef.current = canvas;
+    }
+
+    const width = Math.max(1, Math.round(rect.width * pixelRatio));
+    const height = Math.max(1, Math.round(rect.height * pixelRatio));
+    canvas.width = width;
+    canvas.height = height;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+
+    return canvas;
+  }, []);
+
+  const stopWebGL = useCallback(
+    (options?: { restoreContent?: boolean }) => {
+      const cancel = webglCancelRef.current;
+      if (cancel) {
+        cancel();
+        webglCancelRef.current = null;
+      }
+      hideOverlay();
+      if (options?.restoreContent !== false) {
+        showInnerContent();
+      }
+      restorePositioning();
+      if (contentRef.current) {
+        contentRef.current.style.pointerEvents = "";
+      }
+    },
+    [hideOverlay, restorePositioning, showInnerContent],
+  );
+
+  const getSupportsWebGL = useCallback(() => {
+    webglSupportRef.current ??= canUseWebGL();
+    return webglSupportRef.current;
+  }, []);
+
+  const playOpenWebGL = useCallback(
+    async (node: HTMLElement, opId: number): Promise<boolean> => {
+      if (!origin) {
+        logWebGLIssue("open aborted: missing origin");
+        return false;
+      }
+      if (!getSupportsWebGL()) {
+        logWebGLIssue("open aborted: WebGL unsupported");
+        return false;
+      }
+      const inner = contentInnerRef.current;
+      if (!inner) {
+        logWebGLIssue("open aborted: missing inner content");
+        return false;
+      }
+
+      flushRafs();
+      clearSettleTimeout();
+      stopWebGL();
+
+      const targetRect = node.getBoundingClientRect();
+      const metrics = calculateGenieMetrics(origin, targetRect);
+      lastMetricsRef.current = metrics;
+
+      const pixelRatio =
+        typeof window !== "undefined" && Number.isFinite(window.devicePixelRatio)
+          ? window.devicePixelRatio
+          : 1;
+
+      showInnerContent();
+      hideOverlay();
+      ensureRelativePositioning();
+      node.style.pointerEvents = "none";
+
+      try {
+        const image = await captureElementToImage(inner, pixelRatio);
+        if (operationIdRef.current !== opId) {
+          stopWebGL();
+          return true;
+        }
+
+        const rect = node.getBoundingClientRect();
+        const canvas = ensureCanvas(rect, pixelRatio);
+        if (!canvas) {
+          logWebGLIssue("open aborted: canvas unavailable");
+          stopWebGL();
+          return false;
+        }
+
+        hideInnerContent();
+        showOverlay();
+        animationStateRef.current = "opening";
+
+        const options = buildGeniePlayOptions(metrics, rect, "open", resolvedGlParams, pixelRatio);
+        logWebGLIssue("open starting", {
+          size: options.size,
+          rows: options.rows,
+          cols: options.cols,
+          curveStrength: options.curveStrength,
+          neck: options.neck,
+        });
+        const dispose = playGenie(canvas, image, {
+          ...options,
+          onDone: () => {
+            if (operationIdRef.current !== opId) return;
+            animationStateRef.current = "idle";
+            stopWebGL();
+            restoreRestingStyles(node);
+          },
+        });
+        webglCancelRef.current = dispose;
+        return true;
+      } catch (error) {
+        logWebGLIssue("open animation failed", error);
+        stopWebGL();
+        return false;
+      }
+    },
+    [
+      origin,
+      getSupportsWebGL,
+      flushRafs,
+      clearSettleTimeout,
+      stopWebGL,
+      showInnerContent,
+      hideOverlay,
+      ensureRelativePositioning,
+      ensureCanvas,
+      hideInnerContent,
+      showOverlay,
+      resolvedGlParams,
+      restoreRestingStyles,
+      logWebGLIssue,
+    ],
+  );
+
+  const playCloseWebGL = useCallback(
+    async (node: HTMLElement, opId: number): Promise<boolean> => {
+      if (!origin) {
+        logWebGLIssue("close aborted: missing origin");
+        return false;
+      }
+      if (!getSupportsWebGL()) {
+        logWebGLIssue("close aborted: WebGL unsupported");
+        return false;
+      }
+      const inner = contentInnerRef.current;
+      if (!inner) {
+        logWebGLIssue("close aborted: missing inner content");
+        return false;
+      }
+
+      flushRafs();
+      clearSettleTimeout();
+      stopWebGL();
+
+      const targetRect = node.getBoundingClientRect();
+      const metrics = calculateGenieMetrics(origin, targetRect);
+      lastMetricsRef.current = metrics;
+
+      const pixelRatio =
+        typeof window !== "undefined" && Number.isFinite(window.devicePixelRatio)
+          ? window.devicePixelRatio
+          : 1;
+
+      showInnerContent();
+      hideOverlay();
+      ensureRelativePositioning();
+      node.style.pointerEvents = "none";
+
+      try {
+        const image = await captureElementToImage(inner, pixelRatio);
+        if (operationIdRef.current !== opId) {
+          stopWebGL({ restoreContent: false });
+          return true;
+        }
+
+        const rect = node.getBoundingClientRect();
+        const canvas = ensureCanvas(rect, pixelRatio);
+        if (!canvas) {
+          logWebGLIssue("close aborted: canvas unavailable");
+          stopWebGL({ restoreContent: false });
+          return false;
+        }
+
+        hideInnerContent();
+        showOverlay();
+        animationStateRef.current = "closing";
+
+        const options = buildGeniePlayOptions(metrics, rect, "close", resolvedGlParams, pixelRatio);
+        logWebGLIssue("close starting", {
+          size: options.size,
+          rows: options.rows,
+          cols: options.cols,
+          curveStrength: options.curveStrength,
+          neck: options.neck,
+        });
+        const dispose = playGenie(canvas, image, {
+          ...options,
+          onDone: () => {
+            if (operationIdRef.current !== opId) return;
+            animationStateRef.current = "idle";
+            stopWebGL({ restoreContent: false });
+            restoreRestingStyles(node, { keepOpacityZero: true });
+          },
+        });
+        webglCancelRef.current = dispose;
+        return true;
+      } catch (error) {
+        logWebGLIssue("close animation failed", error);
+        stopWebGL({ restoreContent: false });
+        return false;
+      }
+    },
+    [
+      origin,
+      getSupportsWebGL,
+      flushRafs,
+      clearSettleTimeout,
+      stopWebGL,
+      showInnerContent,
+      hideOverlay,
+      ensureRelativePositioning,
+      ensureCanvas,
+      hideInnerContent,
+      showOverlay,
+      resolvedGlParams,
+      restoreRestingStyles,
+      logWebGLIssue,
+    ],
+  );
+
+  const attemptPlayOpen = useCallback(
+    async (node: HTMLElement, opId: number) => {
+      const played = await playOpenWebGL(node, opId);
+      if (operationIdRef.current !== opId) return;
+      if (!played && isDevEnvironment() && typeof console !== "undefined") {
+        console.warn("[LampMotion] WebGL open failed; Genie animation not played.");
+      }
+    },
+    [playOpenWebGL],
+  );
+
+  const attemptPlayClose = useCallback(
+    async (node: HTMLElement, opId: number) => {
+      const played = await playCloseWebGL(node, opId);
+      if (operationIdRef.current !== opId) return;
+      if (!played && isDevEnvironment() && typeof console !== "undefined") {
+        console.warn("[LampMotion] WebGL close failed; Genie animation not played.");
+      }
+    },
+    [playCloseWebGL],
+  );
 
   useLayoutEffect(() => {
     const node = contentRef.current;
     if (!node) return;
 
-    const handleTransitionEnd = (event: TransitionEvent) => {
-      if (event.target !== node) return;
-      if (event.propertyName !== TRANSFORM_PROPERTY) return;
+    const wasOpen = previousIsOpenRef.current;
 
-      const state = animationStateRef.current;
-      if (state === "opening") {
-        animationStateRef.current = "settling";
-        node.style.transition = OVERSHOOT_TRANSITION;
-        node.style.transform = IDENTITY_TRANSFORM;
-        node.style.pointerEvents = "";
-        node.style.clipPath = "";
-        return;
-      }
+    if (isOpen === wasOpen) return;
 
-      animationStateRef.current = "idle";
-      restoreRestingStyles(node);
-    };
+    const opId = operationIdRef.current + 1;
+    operationIdRef.current = opId;
 
-    node.addEventListener("transitionend", handleTransitionEnd);
+    if (isOpen) {
+      void attemptPlayOpen(node, opId);
+    } else {
+      void attemptPlayClose(node, opId);
+    }
+
+    previousIsOpenRef.current = isOpen;
     return () => {
-      node.removeEventListener("transitionend", handleTransitionEnd);
+      operationIdRef.current += 1;
+      stopWebGL();
     };
-  }, [restoreRestingStyles]);
+  }, [attemptPlayClose, attemptPlayOpen, isOpen, stopWebGL]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    return () => {
       flushRafs();
-    },
-    [flushRafs],
-  );
+      clearSettleTimeout();
+      stopWebGL();
+    };
+  }, [clearSettleTimeout, flushRafs, stopWebGL]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();
         close();
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handler);
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handler);
     };
   }, [close, isOpen]);
 
@@ -262,28 +486,95 @@ export function LampMotionContent({ children }: LampMotionContentProps) {
     throw new Error("<LampMotion.Content> expects a single React element child.");
   }
 
-  return cloneElement(children, {
-    ref: mergeRefs(children.ref, contentRef),
-    role: children.props.role ?? "dialog",
-    "aria-modal": children.props["aria-modal"] ?? true,
+  type ChildWithOptionalRef = ReactElement<Record<string, unknown>> & {
+    ref?: Ref<HTMLElement>;
+  };
+  const child = children as ChildWithOptionalRef;
+  const childProps: Record<string, unknown> = child.props ?? {};
+  const originalChildren = childProps.children as ReactNode;
+
+  const contentWrapperStyle: CSSProperties = {
+    position: "relative",
+    zIndex: 1,
+  };
+
+  const overlayStyle: CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+    display: "none",
+    overflow: "hidden",
+    zIndex: 2147483000,
+  };
+
+  return cloneElement(child, {
+    ref: mergeRefs<HTMLElement>(child.ref, contentRef),
+    role: (childProps.role as string | undefined) ?? "dialog",
+    "aria-modal": (childProps["aria-modal"] as boolean | undefined) ?? true,
     "data-lamp-motion-state": isOpen ? "open" : "closed",
+    children: (
+      <>
+        <div ref={contentInnerRef} data-lamp-motion-content style={contentWrapperStyle}>
+          {originalChildren}
+        </div>
+        <div ref={overlayRef} aria-hidden="true" data-lamp-motion-overlay style={overlayStyle} />
+      </>
+    ),
   });
 }
 
-function buildOpenTransform(metrics: GenieMetrics, isInitial: boolean): string {
-  if (isInitial) {
-    const translateX = metrics.translateX * INITIAL_TRANSLATE_FACTOR;
-    const translateY = metrics.translateY * INITIAL_TRANSLATE_FACTOR;
-    return `translate3d(${translateX}px, ${translateY}px, 0px) scale(${INITIAL_SCALE}, ${INITIAL_SCALE}) skewY(${INITIAL_SKEW_DEG}deg)`;
+function buildGeniePlayOptions(
+  metrics: GenieMetrics,
+  rect: DOMRectReadOnly,
+  direction: "open" | "close",
+  params: Required<GenieGLParams>,
+  pixelRatio: number,
+): GeniePlayOptions {
+  const width = Math.max(1, rect.width);
+  const height = Math.max(1, rect.height);
+  const size = {
+    w: Math.max(1, Math.round(width * pixelRatio)),
+    h: Math.max(1, Math.round(height * pixelRatio)),
+  };
+
+  const originLocal = {
+    x: metrics.originX * pixelRatio,
+    y: metrics.originY * pixelRatio,
+  };
+
+  const directionVec = normalizeDirection(metrics.angle);
+  const minDimension = Math.max(1, Math.min(width, height));
+  const neckMin = Math.max(1, params.neckMin) * pixelRatio;
+  const neckMax = Math.max(neckMin, minDimension * params.neckMaxRatio * pixelRatio);
+  const curveStrength = Math.max(0, height * params.curveStrengthRatio * pixelRatio);
+  const dynamicCols = Math.max(params.cols, Math.ceil(width / 48));
+  const dynamicRows = Math.max(params.rows, Math.ceil(height / 10));
+
+  return {
+    duration: params.duration,
+    direction,
+    originLocal,
+    size,
+    directionVec,
+    neck: {
+      min: neckMin,
+      max: neckMax,
+    },
+    curveStrength,
+    cols: Math.max(1, Math.floor(dynamicCols)),
+    rows: Math.max(1, Math.floor(dynamicRows)),
+  };
+}
+
+function normalizeDirection(angle: number) {
+  if (!Number.isFinite(angle)) {
+    return { x: 0, y: -1 };
   }
-  return `scale(${OVERSHOOT_SCALE}, ${OVERSHOOT_SCALE}) translate3d(0px, 0px, 0px) skewY(0deg)`;
-}
-
-function buildCloseTransform(metrics: GenieMetrics): string {
-  return `scale(${metrics.scaleX}, ${metrics.scaleY}) translate3d(${metrics.translateX}px, ${metrics.translateY}px, 0px) skewY(-3deg)`;
-}
-
-function buildCircle(radius: number, x: number, y: number): string {
-  const safeRadius = Number.isFinite(radius) ? Math.max(radius, 1) : 1;
-  return `circle(${safeRadius}px at ${x}px ${y}px)`;
+  const x = Math.cos(angle);
+  const y = Math.sin(angle);
+  const length = Math.hypot(x, y);
+  if (length === 0) {
+    return { x: 0, y: -1 };
+  }
+  return { x: x / length, y: y / length };
 }

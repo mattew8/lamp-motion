@@ -1,4 +1,12 @@
-import { cloneElement, isValidElement, useCallback, useRef, type ReactElement } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useRef,
+  type ReactElement,
+  type Ref,
+  type SyntheticEvent,
+} from "react";
 import { useLampMotionContext } from "./context";
 import { composeEventHandlers, mergeRefs } from "./utils";
 
@@ -24,9 +32,18 @@ export function LampMotionTrigger({ children }: LampMotionTriggerProps) {
     throw new Error("<LampMotion.Trigger> expects a single React element child.");
   }
 
-  return cloneElement(children, {
-    ref: mergeRefs(children.ref, localRef),
-    onClick: composeEventHandlers(children.props.onClick, handleClick),
+  type ChildWithOptionalRef = ReactElement<Record<string, unknown>> & {
+    ref?: Ref<HTMLElement>;
+  };
+  const child = children as ChildWithOptionalRef;
+  const childProps = (child.props ?? {}) as Record<string, unknown>;
+
+  return cloneElement(child, {
+    ref: mergeRefs<HTMLElement>(child.ref as Ref<HTMLElement> | undefined, localRef),
+    onClick: composeEventHandlers(
+      childProps.onClick as ((event: SyntheticEvent<HTMLElement>) => void) | undefined,
+      handleClick,
+    ),
     "aria-expanded": isOpen,
   });
 }

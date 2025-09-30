@@ -83,15 +83,15 @@ export function calculateGenieMetrics(origin: DOMRect, content: DOMRect): GenieM
 export function buildGeniePath(metrics: GenieMetrics, t: number): string {
   const progress = clamp01(t);
   const neckHoldThreshold = 0.4;
-  const narrowPhaseCap = 0.2;
+  const neckHoldCap = 0.08;
 
   let neckProgress: number;
   if (progress <= neckHoldThreshold) {
     const heldT = clamp01(progress / neckHoldThreshold);
-    neckProgress = clamp01(heldT * heldT * narrowPhaseCap);
+    neckProgress = clamp01(heldT * heldT * neckHoldCap);
   } else {
     const releaseT = clamp01((progress - neckHoldThreshold) / (1 - neckHoldThreshold));
-    neckProgress = clamp01(lerp(narrowPhaseCap, 1, easeOutQuint(releaseT)));
+    neckProgress = clamp01(lerp(neckHoldCap, 1, easeOutQuint(releaseT)));
   }
 
   const bodyProgress = easeOutQuint(progress);
@@ -100,8 +100,9 @@ export function buildGeniePath(metrics: GenieMetrics, t: number): string {
   const width = Math.max(contentRect.width, 1);
   const height = Math.max(contentRect.height, 1);
   const maxRadius = Math.min(width, height) / 2;
-  const targetRadius = Math.min(maxRadius, 24);
-  const radius = clamp(lerp(8, targetRadius, bodyProgress), 6, maxRadius);
+  const minDimension = Math.min(width, height);
+  const targetHeadRadius = Math.min(maxRadius, Math.max(minDimension * 0.35, 30));
+  const radius = clamp(lerp(4, targetHeadRadius, bodyProgress), 1, maxRadius);
 
   const center = { x: width / 2, y: height / 2 };
   const origin = { x: metrics.originX, y: metrics.originY };
@@ -133,15 +134,18 @@ export function buildGeniePath(metrics: GenieMetrics, t: number): string {
 
   const side = determineSide(dirToOrigin, scaleX, scaleY);
 
-  const spanLimit = side === "top" || side === "bottom" ? width - radius * 2 : height - radius * 2;
-  const widestNeck = Math.max(spanLimit, 16);
-  const narrowNeck = Math.max(2.5, widestNeck * 0.22);
-  const neckWidth = clamp(lerp(narrowNeck, widestNeck, neckProgress), narrowNeck, widestNeck);
+  const spanLimitRaw = side === "top" || side === "bottom" ? width - radius * 2 : height - radius * 2;
+  const spanLimit = Math.max(spanLimitRaw, 2);
+  const neckMinBase = Math.max(2, targetHeadRadius / 14);
+  const neckMin = Math.min(neckMinBase, spanLimit);
+  const desiredNeckMax = Math.max(neckMin * 10, targetHeadRadius * 1.3);
+  const neckMax = Math.max(neckMin, Math.min(spanLimit, desiredNeckMax));
+  const neckWidth = clamp(lerp(neckMin, neckMax, neckProgress), neckMin, neckMax);
   const neckHalf = neckWidth / 2;
 
   const originWidth = clamp(
-    lerp(narrowNeck * 0.6, neckWidth * 0.6, neckProgress),
-    Math.max(1.2, narrowNeck * 0.5),
+    lerp(neckMin * 0.6, neckWidth * 0.7, neckProgress),
+    Math.max(1, neckMin * 0.5),
     Math.max(neckWidth, 2),
   );
   const originHalf = originWidth / 2;
