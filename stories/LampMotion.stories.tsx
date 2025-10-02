@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { LampMotion } from "../src";
+import { GenieMotion } from "../src";
 
 function StoryCard() {
   return (
@@ -12,8 +12,8 @@ function StoryCard() {
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
-      <LampMotion>
-        <LampMotion.Trigger>
+      <GenieMotion>
+        <GenieMotion.Trigger>
           <button
             type="button"
             style={{
@@ -27,10 +27,10 @@ function StoryCard() {
           >
             Open card
           </button>
-        </LampMotion.Trigger>
+        </GenieMotion.Trigger>
 
-        <LampMotion.Portal>
-          <LampMotion.Content>
+        <GenieMotion.Portal>
+          <GenieMotion.Content>
             <div
               style={{
                 position: "fixed",
@@ -54,10 +54,10 @@ function StoryCard() {
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                 >
                   <div>
-                    <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>LampMotion</p>
+                    <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>GenieMotion</p>
                     <h3 style={{ margin: "4px 0 0", fontSize: "18px" }}>Compound example</h3>
                   </div>
-                  <LampMotion.Trigger>
+                  <GenieMotion.Trigger>
                     <button
                       type="button"
                       style={{
@@ -71,16 +71,16 @@ function StoryCard() {
                     >
                       ×
                     </button>
-                  </LampMotion.Trigger>
+                  </GenieMotion.Trigger>
                 </header>
 
                 <p style={{ margin: 0, fontSize: "14px", color: "#475569" }}>
-                  Click the trigger again to close. LampMotion handles the contextual expansion and
+                  Click the trigger again to close. GenieMotion handles the contextual expansion and
                   collapse animation using transform + transition.
                 </p>
 
                 <footer style={{ display: "flex", gap: "12px" }}>
-                  <LampMotion.Trigger>
+                  <GenieMotion.Trigger>
                     <button
                       type="button"
                       style={{
@@ -95,7 +95,7 @@ function StoryCard() {
                     >
                       Close
                     </button>
-                  </LampMotion.Trigger>
+                  </GenieMotion.Trigger>
 
                   <button
                     type="button"
@@ -114,21 +114,21 @@ function StoryCard() {
                 </footer>
               </div>
             </div>
-          </LampMotion.Content>
-        </LampMotion.Portal>
-      </LampMotion>
+          </GenieMotion.Content>
+        </GenieMotion.Portal>
+      </GenieMotion>
     </div>
   );
 }
 
 const meta: Meta<typeof StoryCard> = {
-  title: "Components/LampMotion",
+  title: "Components/GenieMotion",
   component: StoryCard,
   parameters: {
     layout: "fullscreen",
     docs: {
       description: {
-        component: "Minimal composition of LampMotion.Trigger, .Portal, and .Content.",
+        component: "Minimal composition of GenieMotion.Trigger, .Portal, and .Content.",
       },
     },
   },

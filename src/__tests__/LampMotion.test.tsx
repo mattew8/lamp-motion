@@ -1,10 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LampMotion } from "..";
-import { GENIE_DURATION_MS } from "../components/lamp-motion/LampMotionRoot";
+import { GenieMotion } from "..";
+import { GENIE_DURATION_MS } from "../components/genie-motion/GenieMotionRoot";
 
-describe("LampMotion", () => {
+describe("GenieMotion", () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
   let rafQueue: FrameRequestCallback[];
   let originalCSS: typeof window.CSS;
@@ -33,17 +33,17 @@ describe("LampMotion", () => {
     const user = userEvent.setup();
 
     render(
-      <LampMotion>
-        <LampMotion.Trigger>
+      <GenieMotion>
+        <GenieMotion.Trigger>
           <button type="button">Open modal</button>
-        </LampMotion.Trigger>
+        </GenieMotion.Trigger>
 
-        <LampMotion.Portal>
-          <LampMotion.Content>
+        <GenieMotion.Portal>
+          <GenieMotion.Content>
             <div>Dialog body</div>
-          </LampMotion.Content>
-        </LampMotion.Portal>
-      </LampMotion>,
+          </GenieMotion.Content>
+        </GenieMotion.Portal>
+      </GenieMotion>,
     );
 
     const button = screen.getByRole("button", { name: /open modal/i });
@@ -64,17 +64,17 @@ describe("LampMotion", () => {
     const user = userEvent.setup();
 
     render(
-      <LampMotion>
-        <LampMotion.Trigger>
+      <GenieMotion>
+        <GenieMotion.Trigger>
           <button type="button">Open modal</button>
-        </LampMotion.Trigger>
+        </GenieMotion.Trigger>
 
-        <LampMotion.Portal>
-          <LampMotion.Content>
+        <GenieMotion.Portal>
+          <GenieMotion.Content>
             <div data-testid="dialog">Dialog body</div>
-          </LampMotion.Content>
-        </LampMotion.Portal>
-      </LampMotion>,
+          </GenieMotion.Content>
+        </GenieMotion.Portal>
+      </GenieMotion>,
     );
 
     const button = screen.getByRole("button", { name: /open modal/i });
@@ -104,17 +104,17 @@ describe("LampMotion", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
-      <LampMotion>
-        <LampMotion.Trigger>
+      <GenieMotion>
+        <GenieMotion.Trigger>
           <button type="button">Open modal</button>
-        </LampMotion.Trigger>
+        </GenieMotion.Trigger>
 
-        <LampMotion.Portal>
-          <LampMotion.Content>
+        <GenieMotion.Portal>
+          <GenieMotion.Content>
             <div data-testid="dialog">Dialog body</div>
-          </LampMotion.Content>
-        </LampMotion.Portal>
-      </LampMotion>,
+          </GenieMotion.Content>
+        </GenieMotion.Portal>
+      </GenieMotion>,
     );
 
     const button = screen.getByRole("button", { name: /open modal/i });
