@@ -16,16 +16,10 @@
     "types": ["vitest/globals", "@testing-library/jest-dom"],
     "baseUrl": ".",
     "paths": {
-      "@lamp-motion/react": ["./src/index.ts"]
+      "@genie-motion/react": ["./src/index.ts"]
     },
     "outDir": "./dist"
   },
-  "include": [
-    "src",
-    "vitest.config.ts",
-    "tsup.config.ts",
-    ".storybook",
-    "stories"
-  ],
+  "include": ["src", "vitest.config.ts", "tsup.config.ts", ".storybook", "stories"],
   "exclude": ["dist", "node_modules"]
 }
