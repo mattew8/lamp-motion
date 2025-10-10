@@ -21,6 +21,7 @@ import type { GeniePlayOptions } from "./webgl/types";
 type AnimationState = "idle" | "opening" | "closing";
 
 const IDENTITY_TRANSFORM = "translate3d(0px, 0px, 0px) scale(1, 1) skewY(0deg)";
+const GENIE_LOG_PREFIX = "[GenieMotion]";
 
 interface GenieGLParams {
   duration?: number;
@@ -80,14 +81,14 @@ export function GenieMotionContent({ children, glParams }: GenieMotionContentPro
   const logWebGLIssue = useCallback((stage: string, detail?: unknown) => {
     if (!isDevEnvironment() || typeof console === "undefined") return;
     if (detail instanceof Error) {
-      console.warn(`[GenieMotion] WebGL ${stage}`, detail);
+      console.warn(`${GENIE_LOG_PREFIX} WebGL ${stage}`, detail);
       return;
     }
     if (detail !== undefined) {
-      console.warn(`[GenieMotion] WebGL ${stage}`, detail);
+      console.warn(`${GENIE_LOG_PREFIX} WebGL ${stage}`, detail);
       return;
     }
-    console.warn(`[GenieMotion] WebGL ${stage}`);
+    console.warn(`${GENIE_LOG_PREFIX} WebGL ${stage}`);
   }, []);
 
   const flushRafs = useCallback(() => {
