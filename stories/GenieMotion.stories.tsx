@@ -25,7 +25,7 @@ function StoryCard() {
               cursor: "pointer",
             }}
           >
-            Open card
+            Open motion card
           </button>
         </GenieMotion.Trigger>
 
@@ -109,7 +109,7 @@ function StoryCard() {
                       cursor: "pointer",
                     }}
                   >
-                    Continue
+                    Continue >
                   </button>
                 </footer>
               </div>
@@ -124,6 +124,7 @@ function StoryCard() {
 const meta: Meta<typeof StoryCard> = {
   title: "Components/GenieMotion",
   component: StoryCard,
+  tags: ["autodocs"],
   parameters: {
     layout: "fullscreen",
     docs: {
