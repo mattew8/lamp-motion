@@ -3,17 +3,16 @@ import React from "react";
 import { GenieMotion } from "../index";
 import "./genie-motion.css";
 
-const meta = {
+const meta: Meta = {
   title: "Components/GenieMotion",
-  component: GenieMotion.Root,
   parameters: {
     layout: "fullscreen",
   },
   tags: ["autodocs"],
-} satisfies Meta<typeof GenieMotion.Root>;
+};
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj;
 
 export const Basic: Story = {
   render: () => (

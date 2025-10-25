@@ -37,19 +37,27 @@ export function calculateGenieTransform(progress: number, from: DOMRect, to: DOM
   // Apply easing function
   const eased = easeInOutCubic(progress);
 
+  // Calculate target center position (where content should end up)
+  const targetCenterX = to.left + to.width / 2;
+  const targetCenterY = to.top + to.height / 2;
+
+  // Calculate trigger center position (where animation starts)
+  const triggerCenterX = from.left + from.width / 2;
+  const triggerCenterY = from.top + from.height / 2;
+
+  // Calculate translation needed
+  const translateX = interpolate(triggerCenterX - targetCenterX, 0, eased);
+  const translateY = interpolate(triggerCenterY - targetCenterY, 0, eased);
+
   // Calculate scale transformation
   const scaleX = interpolate(from.width / to.width, 1, eased);
   const scaleY = interpolate(from.height / to.height, 1, eased);
-
-  // Calculate position transformation
-  const translateX = interpolate(from.left - to.left, 0, eased);
-  const translateY = interpolate(from.top - to.top, 0, eased);
 
   // Calculate non-linear distortion (characteristic of Genie effect)
   const skewY = Math.sin(progress * Math.PI) * MAX_SKEW_ANGLE;
 
   return `
-    translate(${translateX}px, ${translateY}px)
+    translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px))
     scale(${scaleX}, ${scaleY})
     skewY(${skewY}deg)
   `

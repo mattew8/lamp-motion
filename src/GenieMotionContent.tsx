@@ -3,7 +3,7 @@
  * Container that animates with the genie effect
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useGenieMotionContext } from "./GenieMotionRoot";
 import { useGenieMotion } from "./useGenieMotion";
 import type { GenieMotionContentProps } from "./types";
@@ -16,16 +16,18 @@ export function GenieMotionContent({ children, className, style }: GenieMotionCo
   const { isOpen, contentRef, triggerRef, close } = useGenieMotionContext();
   const [shouldRender, setShouldRender] = useState(isOpen);
 
+  const handleAnimationComplete = useCallback(() => {
+    if (!isOpen) {
+      setShouldRender(false);
+    }
+  }, [isOpen]);
+
   // Animation hook manages the genie effect
   useGenieMotion({
     isOpen,
     triggerRef,
     contentRef,
-    onAnimationComplete: () => {
-      if (!isOpen) {
-        setShouldRender(false);
-      }
-    },
+    onAnimationComplete: handleAnimationComplete,
   });
 
   useEffect(() => {
@@ -60,12 +62,12 @@ export function GenieMotionContent({ children, className, style }: GenieMotionCo
         className={className}
         style={{
           position: "fixed",
-          top: 0,
-          left: 0,
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
           zIndex: 1000,
           transformOrigin: "center center",
           willChange: "transform, opacity",
-          transform: "translateZ(0)", // Force GPU acceleration
           ...style,
         }}
         role="dialog"
