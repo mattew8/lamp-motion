@@ -3,9 +3,9 @@
  * Manages the genie animation lifecycle using requestAnimationFrame
  */
 
-import { useEffect, useState } from 'react';
-import { calculateGenieTransform } from './animations';
-import type { UseGenieMotionOptions, AnimationPhase } from './types';
+import { useEffect, useState } from "react";
+import { calculateGenieTransform } from "./animations";
+import type { UseGenieMotionOptions, AnimationPhase } from "./types";
 
 // Constants
 const ANIMATION_DURATION_MS = 600;
@@ -16,7 +16,7 @@ const ANIMATION_DURATION_MS = 600;
  */
 export function useGenieMotion(options: UseGenieMotionOptions) {
   const { isOpen, triggerRef, contentRef, onAnimationComplete } = options;
-  const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('idle');
+  const [animationPhase, setAnimationPhase] = useState<AnimationPhase>("idle");
 
   useEffect(() => {
     if (!triggerRef.current || !contentRef.current) return;
@@ -35,11 +35,7 @@ export function useGenieMotion(options: UseGenieMotionOptions) {
       // Reverse progress for closing animation
       const effectiveProgress = isOpen ? progress : 1 - progress;
 
-      const transform = calculateGenieTransform(
-        effectiveProgress,
-        triggerRect,
-        contentRect
-      );
+      const transform = calculateGenieTransform(effectiveProgress, triggerRect, contentRect);
 
       if (contentRef.current) {
         contentRef.current.style.transform = transform;
@@ -49,12 +45,12 @@ export function useGenieMotion(options: UseGenieMotionOptions) {
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(animate);
       } else {
-        setAnimationPhase('complete');
+        setAnimationPhase("complete");
         onAnimationComplete?.();
       }
     };
 
-    setAnimationPhase('animating');
+    setAnimationPhase("animating");
     animationFrameId = requestAnimationFrame(animate);
 
     return () => {

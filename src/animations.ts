@@ -22,11 +22,7 @@ export function easeInOutCubic(t: number): number {
  * @param progress - Progress value (0 to 1)
  * @returns Interpolated value
  */
-export function interpolate(
-  start: number,
-  end: number,
-  progress: number
-): number {
+export function interpolate(start: number, end: number, progress: number): number {
   return start + (end - start) * progress;
 }
 
@@ -37,11 +33,7 @@ export function interpolate(
  * @param to - Ending position (Content's getBoundingClientRect)
  * @returns CSS transform string
  */
-export function calculateGenieTransform(
-  progress: number,
-  from: DOMRect,
-  to: DOMRect
-): string {
+export function calculateGenieTransform(progress: number, from: DOMRect, to: DOMRect): string {
   // Apply easing function
   const eased = easeInOutCubic(progress);
 

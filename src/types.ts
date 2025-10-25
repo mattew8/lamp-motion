@@ -34,4 +34,4 @@ export interface UseGenieMotionOptions {
   onAnimationComplete?: () => void;
 }
 
-export type AnimationPhase = 'idle' | 'animating' | 'complete';
+export type AnimationPhase = "idle" | "animating" | "complete";

@@ -3,9 +3,9 @@
  * Button that opens the genie animation
  */
 
-import React from 'react';
-import { useGenieMotionContext } from './GenieMotionRoot';
-import type { GenieMotionTriggerProps } from './types';
+import React from "react";
+import { useGenieMotionContext } from "./GenieMotionRoot";
+import type { GenieMotionTriggerProps } from "./types";
 
 /**
  * Trigger component (button) that initiates the genie animation
@@ -32,7 +32,7 @@ export function GenieMotionTrigger({
       ref: triggerRef,
       onClick: handleClick,
       ...props,
-    } as any);
+    } as React.HTMLAttributes<HTMLElement>);
   }
 
   return (

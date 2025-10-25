@@ -3,9 +3,9 @@
  * Compound component pattern similar to Radix UI
  */
 
-import { GenieMotionRoot } from './GenieMotionRoot';
-import { GenieMotionTrigger } from './GenieMotionTrigger';
-import { GenieMotionContent } from './GenieMotionContent';
+import { GenieMotionRoot } from "./GenieMotionRoot";
+import { GenieMotionTrigger } from "./GenieMotionTrigger";
+import { GenieMotionContent } from "./GenieMotionContent";
 
 // Default export: Compound component pattern
 export const GenieMotion = {
@@ -18,7 +18,7 @@ export const GenieMotion = {
 export { GenieMotionRoot };
 export { GenieMotionTrigger };
 export { GenieMotionContent };
-export { useGenieMotionContext } from './GenieMotionRoot';
+export { useGenieMotionContext } from "./GenieMotionRoot";
 
 // Type exports
 export type {
@@ -28,4 +28,4 @@ export type {
   GenieMotionContentProps,
   UseGenieMotionOptions,
   AnimationPhase,
-} from './types';
+} from "./types";

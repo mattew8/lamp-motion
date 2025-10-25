@@ -12,11 +12,7 @@ import type { GenieMotionContentProps } from "./types";
  * Content component that displays with genie animation
  * Automatically manages rendering based on animation state
  */
-export function GenieMotionContent({
-  children,
-  className,
-  style,
-}: GenieMotionContentProps) {
+export function GenieMotionContent({ children, className, style }: GenieMotionContentProps) {
   const { isOpen, contentRef, triggerRef, close } = useGenieMotionContext();
   const [shouldRender, setShouldRender] = useState(isOpen);
 

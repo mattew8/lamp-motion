@@ -53,9 +53,5 @@ export function GenieMotionRoot({
     close,
   };
 
-  return (
-    <GenieMotionContext.Provider value={value}>
-      {children}
-    </GenieMotionContext.Provider>
-  );
+  return <GenieMotionContext.Provider value={value}>{children}</GenieMotionContext.Provider>;
 }
