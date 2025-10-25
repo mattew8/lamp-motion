@@ -17,6 +17,19 @@ macOS의 Genie(램프) 효과를 웹에서 구현하는 React 기반 headless UI
 npm install genie-motion
 ```
 
+## 🎨 Interactive Playground
+
+Try out GenieMotion in our interactive Storybook playground:
+
+```bash
+git clone https://github.com/yourusername/genie-motion.git
+cd genie-motion
+npm install
+npm run storybook
+```
+
+Visit `http://localhost:6006` to explore different examples and configurations!
+
 ## 🚀 Quick Start
 
 ```tsx
@@ -213,10 +226,22 @@ transform = `
 # Install dependencies
 npm install
 
+# Run Storybook (interactive component playground)
+npm run storybook
+
+# Build Storybook
+npm run build-storybook
+
 # Type check
 npm run typecheck
 
-# Build
+# Lint
+npm run lint
+
+# Format code
+npm run format
+
+# Build library
 npm run build
 
 # Watch mode

@@ -30,5 +30,10 @@ pnpm-debug.log*
 *.tmp
 .cache
 
+# Storybook
+storybook-static
+*storybook.log
+build-storybook.log
+
 # Assistant
 CLAUDE.md
