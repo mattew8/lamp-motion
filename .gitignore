@@ -1,13 +1,34 @@
+# Dependencies
 node_modules
-.dist
-.DS_Store
+
+# Build output
 dist
-coverage
+.dist
 *.tsbuildinfo
 
-# pnpm
+# OS files
+.DS_Store
+
+# Testing
+coverage
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 pnpm-debug.log*
 
-# assistants
-AGENT.md
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+.cache
+
+# Assistant
 CLAUDE.md
