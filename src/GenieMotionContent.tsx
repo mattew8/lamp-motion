@@ -15,16 +15,18 @@ import type { GenieMotionContentProps } from "./types";
 export function GenieMotionContent({ children, className, style }: GenieMotionContentProps) {
   const { isOpen, contentRef, triggerRef, close } = useGenieMotionContext();
   const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isReady, setIsReady] = useState(false);
 
   const handleAnimationComplete = useCallback(() => {
     if (!isOpen) {
       setShouldRender(false);
+      setIsReady(false);
     }
   }, [isOpen]);
 
   // Animation hook manages the genie effect
   useGenieMotion({
-    isOpen,
+    isOpen: isOpen && isReady,
     triggerRef,
     contentRef,
     onAnimationComplete: handleAnimationComplete,
@@ -33,6 +35,10 @@ export function GenieMotionContent({ children, className, style }: GenieMotionCo
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
+      // Wait for next frame to ensure ref is set
+      requestAnimationFrame(() => {
+        setIsReady(true);
+      });
     }
   }, [isOpen]);
 
@@ -65,6 +71,7 @@ export function GenieMotionContent({ children, className, style }: GenieMotionCo
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
+          opacity: 0,
           zIndex: 1000,
           transformOrigin: "center center",
           willChange: "transform, opacity",
