@@ -70,13 +70,34 @@ export function useGenieMotion(options: UseGenieMotionOptions) {
       cancelAnimationFrame(animationFrameIdRef.current);
     }
 
+    // For opening animation: set initial state first
+    if (isOpen && contentRef.current) {
+      // Calculate initial position (at trigger)
+      const targetCenterX = contentRect.left + contentRect.width / 2;
+      const targetCenterY = contentRect.top + contentRect.height / 2;
+      const triggerCenterX = triggerRect.left + triggerRect.width / 2;
+      const triggerCenterY = triggerRect.top + triggerRect.height / 2;
+
+      const translateX = triggerCenterX - targetCenterX;
+      const translateY = triggerCenterY - targetCenterY;
+      const scaleX = triggerRect.width / contentRect.width;
+      const scaleY = triggerRect.height / contentRect.height;
+
+      // Set initial state (at trigger position, invisible)
+      contentRef.current.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${scaleX}, ${scaleY})`;
+      contentRef.current.style.opacity = "0";
+    }
+
     isAnimatingRef.current = true;
     setAnimationPhase("animating");
 
-    const startTime = performance.now();
-    animationFrameIdRef.current = requestAnimationFrame(() =>
-      animate(startTime, triggerRect, contentRect, isOpen)
-    );
+    // Start animation in the next frame
+    requestAnimationFrame(() => {
+      const startTime = performance.now();
+      animationFrameIdRef.current = requestAnimationFrame(() =>
+        animate(startTime, triggerRect, contentRect, isOpen)
+      );
+    });
 
     return () => {
       if (animationFrameIdRef.current !== null) {
