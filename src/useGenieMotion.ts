@@ -8,7 +8,7 @@ import { calculateGenieTransform } from "./animations";
 import type { UseGenieMotionOptions, AnimationPhase } from "./types";
 
 // Constants
-const ANIMATION_DURATION_MS = 600;
+const ANIMATION_DURATION_MS = 500; // Faster for more dynamic genie effect
 
 /**
  * Core hook that manages the genie animation

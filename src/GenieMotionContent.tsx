@@ -74,7 +74,9 @@ export function GenieMotionContent({ children, className, style }: GenieMotionCo
           opacity: 0,
           zIndex: 1000,
           transformOrigin: "center center",
+          transformStyle: "preserve-3d",
           willChange: "transform, opacity",
+          backfaceVisibility: "hidden",
           ...style,
         }}
         role="dialog"
